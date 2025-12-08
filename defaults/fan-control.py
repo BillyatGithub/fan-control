@@ -7,7 +7,7 @@
 import time # used for sleep
 import subprocess # used to execute external commands
 import logging # lets make some nice logs
-from logging.handlers import RotatingFileHandler # needed for log rotation
+from logging.handlers import RotatingFileHandler
 import json # we'll use json to handle reading the data from sensors a bit more cleanly/easily in Proxmox
 import os # used to check if config.ini has changed
 from configparser import ConfigParser # using ConfigParser for separate config file
@@ -75,11 +75,12 @@ def get_hdd_temp(disk_list): # this feels like a silly way to do it but it works
 
 def get_cpu_zone_speed(temp,cpu_fan_curve): # based on the fan curve, decide what the appropriate fan power level (fan speed) should be, return it as an integer.
     i = 0 # create an iterator
+    power = 100  # Set as backup, (usually) overwritten below
     while i < (len(cpu_fan_curve) - 1): # while iterator is 1 less than total length of fan curve...
         a = cpu_fan_curve[i] # set 'a' to curve temp value of iterator
         b = cpu_fan_curve[i + 1] # set 'b' to next curve temp value of iterator
 
-        if temp >= a[0] and temp <= b[0]: # if current average temperature is greater or equal to 'a' and less or equal to 'b' ...
+        if temp > a[0] and temp <= b[0]: # if current average temperature is greater or equal to 'a' and less or equal to 'b' ...
             power = a[1] + (temp - a[0]) * (b[1] - a[1]) / (b[0] - a[0]) # do some math to figure out what to set fan power to
             break
         i += 1 # bump the iterator
@@ -87,6 +88,7 @@ def get_cpu_zone_speed(temp,cpu_fan_curve): # based on the fan curve, decide wha
 
 def get_hdd_zone_speed(temps,max_temp,speed_addition,hdd_fan_curve): # based on the fan curve, decide what the appropriate fan power level (fan speed) should be, return it as an integer.
     i = 0 # create an iterator
+    power = 100  # Set as backup, (usually) overwritten below
     if temps[1] >= max_temp: # if current max temp is greater than config's max temp bump the returned power by our max addition
         a = hdd_fan_curve[i] # set 'a' to curve temp value of iterator
         b = hdd_fan_curve[i + 1] # set 'b' to next curve temp value of iterator
@@ -98,7 +100,7 @@ def get_hdd_zone_speed(temps,max_temp,speed_addition,hdd_fan_curve): # based on 
             a = hdd_fan_curve[i] # set 'a' to curve temp value of iterator
             b = hdd_fan_curve[i + 1] # set 'b' to next curve temp value of iterator
 
-            if temps[0] >= a[0] and temps[0] <= b[0]: # if current average temperature is greater or equal to 'a' and less or equal to 'b' ...
+            if temps[0] > a[0] and temps[0] <= b[0]: # if current average temperature is greater or equal to 'a' and less or equal to 'b' ...
                 power = a[1] + (temps[0] - a[0]) * (b[1] - a[1]) / (b[0] - a[0]) # do some math to figure out what to set fan power to
                 break
             i += 1 # bump the iterator
@@ -202,14 +204,14 @@ while True: # This is a service so it needs to run forever... so... lets make an
                 current_cpu_fan_speed = get_cpu_zone_speed(current_cpu_temp,cpu_fan_curve) # get what the fan speed should be based on above temp
                 if log_frequency == "Every":
                     logging.info("CPU Temp: {temp}C -> Fans: {fan_speed}".format(temp=current_cpu_temp,fan_speed=current_cpu_fan_speed)) # For each loop, write the temp then the proposed fan speed
-                    set_linked_zone_fan_speed(platform, speed)(current_cpu_fan_speed) # set the fan speed
+                    set_linked_zone_fan_speed(hardware_platform)(current_cpu_fan_speed) # set the fan speed
                 if log_frequency == "On_Change":
                     if current_cpu_fan_speed > last_cpu_fan_speed or current_cpu_fan_speed < last_cpu_fan_speed:
                         last_cpu_fan_speed = current_cpu_fan_speed
                         logging.info("CPU Temp: {temp}C -> Fans: {fan_speed}".format(temp=current_cpu_temp,fan_speed=current_cpu_fan_speed)) # For each loop, write the temp then the proposed fan speed
-                        set_linked_zone_fan_speed(platform, speed)(current_cpu_fan_speed) # set the fan speed
+                        set_linked_zone_fan_speed(hardware_platform)(current_cpu_fan_speed) # set the fan speed
                 if log_frequency == "On_Panic":
-                    set_linked_zone_fan_speed(platform, speed)(current_cpu_fan_speed) # set the fan speed
+                    set_linked_zone_fan_speed(hardware_platform)(current_cpu_fan_speed) # set the fan speed
             else: # if Fan Zones are not linked
                 current_cpu_temp = get_cpu_temp(operating_system) #get current CPU average temp
                 current_cpu_fan_speed = get_cpu_zone_speed(current_cpu_temp,cpu_fan_curve) # get what the fan speed should be based on above temp
