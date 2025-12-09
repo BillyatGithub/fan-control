@@ -1,3 +1,20 @@
+# Adjusted fan-control script with a disk controller / HBA passthrough  
+
+This is a crudely adjusted version of the script made by jp-powers, and is used to monitor the disk temperatures when those are running under a VM (TrueNAS SCALE) on top of a hypervisor (Proxmox VE). When the disk controller / HBA is passed through to a (Truenas) VM, the (Proxmox) host is unable to see the disks connected to the controller / HBA. This makes the script inaccurate and can be risky even, as the disks may run too hot if they're left unchecked. 
+
+In order to circumvent this inability to query the disk sensors directly,
+
+    qm guest exec
+
+is utilized on the (PVE) host to retrieve the disk temperatures using the command smartctl inside of the (TrueNAS) VM. Just make sure the disks (connected to the disk controller / HBA) are mapped accordingly in the config.ini file, they should follow the naming convention as displayed in lsblk. 
+
+Make sure to place the temperature.sh file in the /root folder of the (TrueNAS) VM, and the getdisktemp.sh file should be placed in the working directory of the Fan-Control service on the (PVE) host (/root/fan-control). The placeholder "VMID_HERE_CHANGEME" must be changed into the VMID of the target VM.
+
+This script has been tested on a Supermicro X10SDV motherboard running Proxmox with a virtual Truenas SCALE VM, however with some adjustments it should run on other distros as well.
+
+Additionally, log rotation has been ducttaped on as well, as the log file eventually ballooned to over 500MB(!) after running the original script for over a year. 
+This adjusted script is provided "as is".
+
 # fan-control
 
 The intent of this script package to provide a (relatively) simple means of controlling fan speed via a fan curve. It is one monolithic script to manage TrueNAS Core, pfSense, and Proxmox.
